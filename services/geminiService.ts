@@ -40,7 +40,7 @@ export class BillingRequiredError extends Error {
   }
 }
 
-async function retryRequest<T>(fn: () => Promise<T>, retries = 6, delayMs = 4000): Promise<T> {
+async function retryRequest<T>(fn: () => Promise<T>, retries = 5, delayMs = 2000): Promise<T> {
   let lastError: any | undefined; // Use 'any' for the raw error object to check its structure
   for (let i = 0; i < retries; i++) {
     try {
@@ -72,7 +72,7 @@ async function retryRequest<T>(fn: () => Promise<T>, retries = 6, delayMs = 4000
         const isOverloaded = apiError?.code === 503 || apiError?.status === 'UNAVAILABLE';
         const backoffMultiplier = isOverloaded ? 2 : 1.5; 
         
-        // Example sequence with delayMs=4000 & 503 error: 4s, 8s, 16s, 32s, 64s
+        // Exponential backoff
         const waitTime = delayMs * Math.pow(backoffMultiplier, i);
             
         await delay(waitTime); 
@@ -208,7 +208,7 @@ export interface AllPinterestContent {
 // Step 1: Deep Analysis
 export const generateCompetitorAnalysis = async (keyword: string, region: string, language: string, competitorContent: string): Promise<string> => {
     const ai = await getGenerativeAI(); // Create instance before each call
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     const prompt = `
         Role: Expert SEO Content Analyst
         Task: Analyze the provided competitor content for the keyword "${keyword}" with a target audience in ${region} who speak ${language}.
@@ -233,7 +233,7 @@ export const generateCompetitorAnalysis = async (keyword: string, region: string
 
 export const generateOutrankingStrategy = async (analysisResult: string): Promise<string> => {
     const ai = await getGenerativeAI(); // Create instance before each call
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     const prompt = `
         Role: Master SEO Strategist
         Task: Based on the following competitor analysis, create a comprehensive content strategy to outrank them.
@@ -257,7 +257,7 @@ export const generateOutrankingStrategy = async (analysisResult: string): Promis
 
 export const generateRecipeSections = async (analysisResult: string, region: string = 'United States', language: string = 'English'): Promise<RecipeSections> => {
     const ai = await getGenerativeAI(); // Create instance before each call
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
 
     // Determine category list based on region/language
     const isFrenchContext = region === 'France' && language === 'French';
@@ -310,7 +310,7 @@ export const generateRecipeSections = async (analysisResult: string, region: str
 // Step 2: Article Components
 export const generateRelatedKeywords = async (analysisResult: string): Promise<string> => {
     const ai = await getGenerativeAI(); // Create instance before each call
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     const prompt = `Based on the competitor analysis provided, generate a list of 15-20 highly relevant related keywords and LSI terms. Output them as a simple, multi-line string. \n\nAnalysis:\n${analysisResult}`;
     // FIX: Explicitly type the generic for retryRequest to ensure 'response' is correctly typed.
     const response = await retryRequest<GenerateContentResponse>(() => ai.models.generateContent({ model: textModel, contents: prompt }));
@@ -319,7 +319,7 @@ export const generateRelatedKeywords = async (analysisResult: string): Promise<s
 
 export const generateFAQs = async (analysisResult: string, language: string = 'English'): Promise<string> => {
     const ai = await getGenerativeAI(); // Create instance before each call
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     const prompt = `Based on the competitor analysis, generate 4 relevant "Frequently Asked Questions" (FAQs) that would be valuable to include in our article. Format them as a multi-line string with each question on a new line. The FAQs must be written in ${language}. \n\nAnalysis:\n${analysisResult}`;
     // FIX: Explicitly type the generic for retryRequest to ensure 'response' is correctly typed.
     const response = await retryRequest<GenerateContentResponse>(() => ai.models.generateContent({ model: textModel, contents: prompt }));
@@ -328,7 +328,7 @@ export const generateFAQs = async (analysisResult: string, language: string = 'E
 
 export const generateInternalLinks = async (keyword: string): Promise<string> => {
     const ai = await getGenerativeAI(); // Create instance before each call
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     const prompt = `For a main article about "${keyword}", suggest 5-7 plausible internal link ideas. For each, provide the anchor text and a hypothetical blog post title it could link to. Format as "Anchor Text: Blog Post Title".`;
     // FIX: Explicitly type the generic for retryRequest to ensure 'response' is correctly typed.
     const response = await retryRequest<GenerateContentResponse>(() => ai.models.generateContent({ model: textModel, contents: prompt }));
@@ -337,7 +337,7 @@ export const generateInternalLinks = async (keyword: string): Promise<string> =>
 
 export const generateExternalLinks = async (keyword: string, analysisResult: string, region: string = 'United States', language: string = 'English'): Promise<string> => {
     const ai = await getGenerativeAI();
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     
     const isFrench = region === 'France' && language === 'French';
     const siteList = isFrench ? FRENCH_HEALTH_SITES.join('\n- ') : ENGLISH_HEALTH_SITES.join('\n- ');
@@ -398,7 +398,7 @@ export const generateExternalLinks = async (keyword: string, analysisResult: str
 // Step 3: Article Generation
 export const generateFullArticle = async (components: ArticleComponents): Promise<string> => {
     const ai = await getGenerativeAI(); // Create instance before each call
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     const prompt = `
         Role: World-class SEO Content Writer and Chef, with a proven track record of creating articles that rank #1 on Google.
         Task: Write a complete, high-quality, and engaging recipe article using ALL of the provided components. The primary goal is to create content that is superior to all known competitors, ensuring it will rank at the very top of search results. The article must be well-structured, easy to read, and optimized for the target keyword. The final article must be professional, highly engaging, and concise, **strictly not exceeding 2000 words**.
@@ -442,7 +442,7 @@ export const generateFullArticle = async (components: ArticleComponents): Promis
 
 export const regenerateArticle = async (components: ArticleComponents, originalArticle: string, feedback: string): Promise<string> => {
     const ai = await getGenerativeAI(); // Create instance before each call
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     const prompt = `
         Role: World-Class SEO Content Editor and Strategist
         Task: Your goal is to create a superior, revised version of the 'Original Article' that is **guaranteed to outperform all competitors and achieve the highest possible ranking on Google**. You MUST incorporate all the 'Improvement Feedback' provided. This feedback is a critical analysis of the original article's strengths and weaknesses compared to competitors. Your revision must correct all weaknesses, amplify the strengths, and implement all suggested improvements to ensure the new version is definitively better and will outrank competitors.
@@ -495,7 +495,7 @@ export const regenerateArticle = async (components: ArticleComponents, originalA
 // Step 4: Post-Generation Analysis & Assets
 export const compareArticleWithCompetitors = async (generatedArticle: string, competitorAnalysis: string): Promise<string> => {
     const ai = await getGenerativeAI(); // Create instance before each call
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     const prompt = `
         Role: Critical SEO Analyst
         Task: Compare the 'Generated Article' against the 'Competitor Analysis'. Provide a concise, critical review in markdown format. 
@@ -518,7 +518,7 @@ export const compareArticleWithCompetitors = async (generatedArticle: string, co
 
 export const generateYouTubeScript = async (articleTitle: string, articleContent: string): Promise<string> => {
     const ai = await getGenerativeAI();
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     const prompt = `
         Role: Expert Video Director and Scriptwriter for culinary content.
         Task: Create a professionally detailed 5-scene video script based on the provided recipe article.
@@ -554,7 +554,7 @@ export const generateYouTubeScript = async (articleTitle: string, articleContent
 
 export const generateReelsScript = async (articleTitle: string, ingredients: string, instructions: string): Promise<string> => {
     const ai = await getGenerativeAI();
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     const prompt = `
         Role: Expert Social Media Content Creator specializing in food.
         Task: Create a viral, high-energy 90-second (1.5 minute) vertical video script (for Instagram Reels, TikTok, YouTube Shorts) for the recipe: "${articleTitle}".
@@ -595,7 +595,7 @@ export const generateReelsScript = async (articleTitle: string, ingredients: str
 
 export const generateImagePromptsAndMetadata = async (targetKeyword: string, ingredients: string, instructions: string): Promise<AllImageDetails> => {
     const ai = await getGenerativeAI(); // Create instance before each call
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     const prompt = `
         Role: Master Art Director & SEO Specialist for a professional food blog.
         Task: For a recipe about "${targetKeyword}", create all necessary image prompts and SEO metadata. Generate highly professional, precise, distinctive, and descriptive prompts designed to produce realistic, high-quality, and appealing images that would attract visitors. The style should be bright, appetizing, and professionally styled for a modern food blog.
@@ -679,7 +679,7 @@ export const generateImagePromptsAndMetadata = async (targetKeyword: string, ing
 
 export const generatePinterestContent = async (targetKeyword: string, relatedKeywords: string, articleTitle: string): Promise<AllPinterestContent> => {
     const ai = await getGenerativeAI();
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     const prompt = `
         Role: World-class SEO strategist and Pinterest marketing expert, specializing in food and recipe content.
         Task: Based on the provided recipe details, generate a complete set of assets for 10 unique Pinterest pins designed to maximize reach, clicks, and saves.
@@ -742,7 +742,7 @@ export const generatePinterestContent = async (targetKeyword: string, relatedKey
 
 export const generatePinterestKeywords = async (mainKeyword: string, keywordStyle: string): Promise<string[]> => {
     const ai = await getGenerativeAI();
-    const textModel = 'gemini-2.5-flash';
+    const textModel = 'gemini-flash-latest';
     const prompt = `
         Role: Expert SEO and Pinterest Trends Analyst
         Task: Analyze the main keyword "${mainKeyword}" and generate 10 related keywords for Pinterest titles, tailored to the "${keywordStyle}" style.
@@ -787,7 +787,7 @@ export const generatePinterestKeywords = async (mainKeyword: string, keywordStyl
 
 export const generatePinterestPins = async (mainKeyword: string, relatedKeywords: string, inspirationImage?: { base64: string, mimeType: string }): Promise<AllPinterestContent> => {
     const ai = await getGenerativeAI();
-    const visionModel = 'gemini-2.5-flash';
+    const visionModel = 'gemini-flash-latest';
 
     const prompt = `
         Role: World-class SEO strategist and Pinterest marketing expert, specializing in food and recipe content.
